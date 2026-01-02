@@ -1,0 +1,180 @@
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-sans/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Wobrexx Professional Palette - Orange Brand */
+    --background: 30 15% 98%;
+    --foreground: 220 20% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 12%;
+
+    /* Wobrexx Orange Primary */
+    --primary: 27 95% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Warm Grey Secondary */
+    --secondary: 30 10% 94%;
+    --secondary-foreground: 220 20% 18%;
+
+    /* Muted Warm Greys */
+    --muted: 30 10% 92%;
+    --muted-foreground: 220 10% 45%;
+
+    /* Orange Accent */
+    --accent: 27 60% 95%;
+    --accent-foreground: 27 95% 40%;
+
+    /* Status Colors */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 45 93% 47%;
+    --warning-foreground: 220 20% 12%;
+
+    --info: 210 70% 50%;
+    --info-foreground: 0 0% 100%;
+
+    /* Borders & Inputs */
+    --border: 30 15% 88%;
+    --input: 30 15% 88%;
+    --ring: 27 95% 53%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar - Dark Charcoal with Orange accents */
+    --sidebar-background: 220 15% 15%;
+    --sidebar-foreground: 30 10% 90%;
+    --sidebar-primary: 27 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 27 80% 50%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 10% 22%;
+    --sidebar-ring: 27 95% 53%;
+
+    /* Chart Colors - Orange focused palette */
+    --chart-1: 27 95% 53%;
+    --chart-2: 152 60% 40%;
+    --chart-3: 210 70% 50%;
+    --chart-4: 27 70% 70%;
+    --chart-5: 340 65% 50%;
+  }
+
+  .dark {
+    /* Improved dark mode - lighter backgrounds for better readability */
+    --background: 215 25% 15%;
+    --foreground: 30 10% 95%;
+
+    --card: 215 22% 20%;
+    --card-foreground: 30 10% 95%;
+
+    --popover: 215 22% 20%;
+    --popover-foreground: 30 10% 95%;
+
+    --primary: 27 95% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 20% 25%;
+    --secondary-foreground: 30 10% 92%;
+
+    --muted: 215 18% 28%;
+    --muted-foreground: 220 10% 65%;
+
+    --accent: 27 50% 25%;
+    --accent-foreground: 27 95% 75%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 18% 28%;
+    --input: 215 18% 28%;
+    --ring: 27 95% 55%;
+
+    /* Sidebar remains same as light mode for consistency */
+    --sidebar-background: 220 15% 15%;
+    --sidebar-foreground: 30 10% 90%;
+    --sidebar-primary: 27 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 27 80% 50%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 10% 22%;
+    --sidebar-ring: 27 95% 53%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+
+  /* Hover card effect */
+  .hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+  
+  .hover-lift:hover {
+    @apply -translate-y-0.5 shadow-lg;
+  }
+
+  /* Subtle glow on focus/hover */
+  .hover-glow {
+    @apply transition-shadow duration-300;
+  }
+  
+  .hover-glow:hover {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
+  }
+
+  /* Row highlight animation */
+  .row-highlight {
+    @apply relative;
+  }
+  
+  .row-highlight::before {
+    content: '';
+    @apply absolute left-0 top-0 bottom-0 w-0 bg-primary/10 transition-all duration-200;
+  }
+  
+  .row-highlight:hover::before {
+    @apply w-full;
+  }
+}
