@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { db } from '@/lib/database';
 import { SyncService } from '@/lib/syncService';
 
@@ -283,6 +283,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   
+  // Track previous state to detect deletions
+  const prevCustomersRef = useRef<Customer[]>([]);
+  const prevAutomationsRef = useRef<Automation[]>([]);
+  const prevProjectsRef = useRef<Project[]>([]);
+  const prevExpensesRef = useRef<Expense[]>([]);
+  const prevNotesRef = useRef<Note[]>([]);
+  const prevPaymentHistoryRef = useRef<PaymentHistory[]>([]);
+  const prevBudgetsRef = useRef<Budget[]>([]);
+  
   // Calculate KPIs from data
   const [kpis, setKPIs] = useState<KPIs>({
     totalCustomers: 0,
@@ -328,6 +337,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         setNotes(data.notes);
         setPaymentHistory(data.paymentHistory);
         setBudgets(data.budgets);
+        
+        // Initialize refs with loaded data
+        prevCustomersRef.current = data.customers;
+        prevAutomationsRef.current = data.automations;
+        prevProjectsRef.current = data.projects;
+        prevExpensesRef.current = data.expenses;
+        prevNotesRef.current = data.notes;
+        prevPaymentHistoryRef.current = data.paymentHistory;
+        prevBudgetsRef.current = data.budgets;
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -341,6 +359,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // Save data to IndexedDB and sync to Supabase when state changes
   useEffect(() => {
     if (!isLoading) {
+      // Find deleted items
+      const currentIds = new Set(customers.map(c => c.id));
+      const deletedIds = prevCustomersRef.current
+        .filter(c => !currentIds.has(c.id))
+        .map(c => c.id);
+      
+      // Delete from IndexedDB and Supabase
+      deletedIds.forEach(id => {
+        db.customers.delete(id).catch(console.error);
+        SyncService.deleteFromSupabase('customers', id).catch(() => {});
+      });
+      
+      // Update/sync current items
       db.customers.bulkPut(customers).catch(console.error);
       SyncService.syncToSupabase('customers', customers, (c) => ({
         id: c.id,
@@ -362,11 +393,24 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         maintenance_due_date: c.maintenanceDueDate,
         maintenance_paid_months: c.maintenancePaidMonths || [],
       })).catch(() => {});
+      
+      // Update ref
+      prevCustomersRef.current = customers;
     }
   }, [customers, isLoading]);
 
   useEffect(() => {
     if (!isLoading) {
+      const currentIds = new Set(automations.map(a => a.id));
+      const deletedIds = prevAutomationsRef.current
+        .filter(a => !currentIds.has(a.id))
+        .map(a => a.id);
+      
+      deletedIds.forEach(id => {
+        db.automations.delete(id).catch(console.error);
+        SyncService.deleteFromSupabase('automations', id).catch(() => {});
+      });
+      
       db.automations.bulkPut(automations).catch(console.error);
       SyncService.syncToSupabase('automations', automations, (a) => ({
         id: a.id,
@@ -377,11 +421,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         status: a.status,
         manual_intervention: a.manualIntervention,
       })).catch(() => {});
+      
+      prevAutomationsRef.current = automations;
     }
   }, [automations, isLoading]);
 
   useEffect(() => {
     if (!isLoading) {
+      const currentIds = new Set(projects.map(p => p.id));
+      const deletedIds = prevProjectsRef.current
+        .filter(p => !currentIds.has(p.id))
+        .map(p => p.id);
+      
+      deletedIds.forEach(id => {
+        db.projects.delete(id).catch(console.error);
+        SyncService.deleteFromSupabase('projects', id).catch(() => {});
+      });
+      
       db.projects.bulkPut(projects).catch(console.error);
       SyncService.syncToSupabase('projects', projects, (p) => ({
         id: p.id,
@@ -394,11 +450,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         type: p.type,
         start_date: p.startDate,
       })).catch(() => {});
+      
+      prevProjectsRef.current = projects;
     }
   }, [projects, isLoading]);
 
   useEffect(() => {
     if (!isLoading) {
+      const currentIds = new Set(expenses.map(e => e.id));
+      const deletedIds = prevExpensesRef.current
+        .filter(e => !currentIds.has(e.id))
+        .map(e => e.id);
+      
+      deletedIds.forEach(id => {
+        db.expenses.delete(id).catch(console.error);
+        SyncService.deleteFromSupabase('expenses', id).catch(() => {});
+      });
+      
       db.expenses.bulkPut(expenses).catch(console.error);
       SyncService.syncToSupabase('expenses', expenses, (e) => ({
         id: e.id,
@@ -409,11 +477,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         due_date: e.dueDate,
         is_paid: e.isPaid,
       })).catch(() => {});
+      
+      prevExpensesRef.current = expenses;
     }
   }, [expenses, isLoading]);
 
   useEffect(() => {
     if (!isLoading) {
+      const currentIds = new Set(notes.map(n => n.id));
+      const deletedIds = prevNotesRef.current
+        .filter(n => !currentIds.has(n.id))
+        .map(n => n.id);
+      
+      deletedIds.forEach(id => {
+        db.notes.delete(id).catch(console.error);
+        SyncService.deleteFromSupabase('notes', id).catch(() => {});
+      });
+      
       db.notes.bulkPut(notes).catch(console.error);
       SyncService.syncToSupabase('notes', notes, (n) => ({
         id: n.id,
@@ -422,11 +502,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         completed: n.completed,
         date: n.date,
       })).catch(() => {});
+      
+      prevNotesRef.current = notes;
     }
   }, [notes, isLoading]);
 
   useEffect(() => {
     if (!isLoading) {
+      const currentIds = new Set(paymentHistory.map(p => p.id));
+      const deletedIds = prevPaymentHistoryRef.current
+        .filter(p => !currentIds.has(p.id))
+        .map(p => p.id);
+      
+      deletedIds.forEach(id => {
+        db.paymentHistory.delete(id).catch(console.error);
+        SyncService.deleteFromSupabase('payment_history', id).catch(() => {});
+      });
+      
       db.paymentHistory.bulkPut(paymentHistory).catch(console.error);
       SyncService.syncToSupabase('payment_history', paymentHistory, (p) => ({
         id: p.id,
@@ -437,11 +529,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         date: p.date,
         notes: p.notes,
       })).catch(() => {});
+      
+      prevPaymentHistoryRef.current = paymentHistory;
     }
   }, [paymentHistory, isLoading]);
 
   useEffect(() => {
     if (!isLoading) {
+      const currentIds = new Set(budgets.map(b => b.id));
+      const deletedIds = prevBudgetsRef.current
+        .filter(b => !currentIds.has(b.id))
+        .map(b => b.id);
+      
+      deletedIds.forEach(id => {
+        db.budgets.delete(id).catch(console.error);
+        SyncService.deleteFromSupabase('budgets', id).catch(() => {});
+      });
+      
       db.budgets.bulkPut(budgets).catch(console.error);
       SyncService.syncToSupabase('budgets', budgets, (b) => ({
         id: b.id,
@@ -449,6 +553,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         monthly_target: b.monthlyTarget,
         month: b.month,
       })).catch(() => {});
+      
+      prevBudgetsRef.current = budgets;
     }
   }, [budgets, isLoading]);
 
