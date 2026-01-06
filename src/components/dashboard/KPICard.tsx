@@ -29,7 +29,7 @@ export function KPICard({
           maximumFractionDigits: 0,
         }).format(val);
       case 'percentage':
-        return `${val}%`;
+        return `${val.toFixed(1)}%`;
       default:
         return new Intl.NumberFormat('en-US').format(val);
     }

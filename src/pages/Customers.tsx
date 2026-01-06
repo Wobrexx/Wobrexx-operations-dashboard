@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Trash2, AlertTriangle, Pencil } from 'lucide-react';
+import { Trash2, AlertTriangle, Pencil, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDashboard, Customer } from '@/contexts/DashboardContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EditableCell } from '@/components/dashboard/EditableCell';
 import { AddCustomerDialog } from '@/components/dashboard/AddCustomerDialog';
 import { EditCustomerDialog } from '@/components/dashboard/EditCustomerDialog';
+import { CustomerDetailDialog } from '@/components/dashboard/CustomerDetailDialog';
 import { SearchFilter, FilterConfig } from '@/components/dashboard/SearchFilter';
 import { TablePagination } from '@/components/dashboard/TablePagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -61,6 +62,8 @@ export default function Customers() {
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [customerToView, setCustomerToView] = useState<Customer | null>(null);
 
   const updateCustomer = (id: string, field: keyof Customer, value: string | number | boolean) => {
     setCustomers(
@@ -77,6 +80,11 @@ export default function Customers() {
   const handleEditClick = (customer: Customer) => {
     setCustomerToEdit(customer);
     setEditDialogOpen(true);
+  };
+
+  const handleViewClick = (customer: Customer) => {
+    setCustomerToView(customer);
+    setViewDialogOpen(true);
   };
 
   const handleDeleteClick = (customer: Customer) => {
@@ -344,7 +352,17 @@ export default function Customers() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => handleViewClick(customer)}
+                            title="View details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
                             onClick={() => handleEditClick(customer)}
+                            title="Edit customer"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -353,6 +371,7 @@ export default function Customers() {
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             onClick={() => handleDeleteClick(customer)}
+                            title="Delete customer"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -412,6 +431,13 @@ export default function Customers() {
           onOpenChange={setEditDialogOpen}
         />
       )}
+
+      {/* View Customer Detail Dialog */}
+      <CustomerDetailDialog
+        customer={customerToView}
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+      />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Plus, Trash2, TrendingUp, DollarSign, Wallet, BarChart3, Filter, Calendar, CheckCircle, XCircle, Download, FileText, AlertCircle, Bell, History, Clock, Receipt } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
+import { Plus, Trash2, TrendingUp, DollarSign, Wallet, BarChart3, Filter, Calendar, CheckCircle, XCircle, Download, FileText, AlertCircle, Bell, History, Clock, Receipt, Target, TrendingDown, Eye } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ReferenceLine, Legend } from 'recharts';
 import { format, isBefore, parseISO, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
-import { useDashboard, Expense, Customer, PaymentInfo, PaymentHistory } from '@/contexts/DashboardContext';
+import { useDashboard, Expense, Customer, PaymentInfo, PaymentHistory, Budget } from '@/contexts/DashboardContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,10 @@ import { exportToCSV, exportToPDF, FinancialExportData } from '@/utils/exportFin
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { AddPaymentDialog } from '@/components/dashboard/AddPaymentDialog';
-
+import { AddExpenseDialog } from '@/components/dashboard/AddExpenseDialog';
+import { BudgetPlanningDialog } from '@/components/dashboard/BudgetPlanningDialog';
+import { CustomerDetailDialog } from '@/components/dashboard/CustomerDetailDialog';
+import { Progress } from '@/components/ui/progress';
 const EXPENSE_COLORS = [
   'hsl(var(--chart-1))',
   'hsl(var(--chart-2))',
@@ -86,11 +89,19 @@ function SectionHeader({
 }
 
 export default function Financials() {
-  const { expenses, setExpenses, financialKPIs, chartData, customers, setCustomers, paymentHistory, addPaymentRecord, viewMode, setViewMode } = useDashboard();
+  const { expenses, setExpenses, financialKPIs, chartData, customers, setCustomers, paymentHistory, addPaymentRecord, viewMode, setViewMode, budgets, setBudgets } = useDashboard();
   const { toast } = useToast();
   const [paymentTypeFilter, setPaymentTypeFilter] = useState('all');
   const [maintenanceFilter, setMaintenanceFilter] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
+  const [activeTab, setActiveTab] = useState('payments');
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [customerToView, setCustomerToView] = useState<Customer | null>(null);
+
+  const handleViewClick = (customer: Customer) => {
+    setCustomerToView(customer);
+    setViewDialogOpen(true);
+  };
 
   // Get date range based on global view mode
   const dateRange = useMemo(() => {
@@ -134,16 +145,7 @@ export default function Financials() {
     );
   };
 
-  const addExpense = () => {
-    const newExpense: Expense = {
-      id: Date.now().toString(),
-      category: 'Other',
-      description: 'New expense',
-      amount: 0,
-      recurring: false,
-    };
-    setExpenses([...expenses, newExpense]);
-  };
+  // Remove the inline addExpense - we'll use the dialog instead
 
   const deleteExpense = (id: string) => {
     setExpenses(expenses.filter((e) => e.id !== id));
@@ -316,7 +318,69 @@ export default function Financials() {
     ];
   }, [periodTotals]);
 
+  // Budget variance calculations
+  const budgetVarianceData = useMemo(() => {
+    const currentMonth = format(new Date(), 'yyyy-MM');
+    const monthBudgets = budgets.filter(b => b.month === currentMonth);
+    
+    return monthBudgets.map(budget => {
+      const actualSpending = expenses
+        .filter(e => e.category === budget.category)
+        .reduce((sum, e) => sum + e.amount, 0);
+      
+      const variance = budget.monthlyTarget - actualSpending;
+      const variancePercent = budget.monthlyTarget > 0 
+        ? ((variance / budget.monthlyTarget) * 100)
+        : 0;
+      const usagePercent = budget.monthlyTarget > 0
+        ? Math.min(100, (actualSpending / budget.monthlyTarget) * 100)
+        : 100;
+      
+      return {
+        category: budget.category,
+        budget: budget.monthlyTarget,
+        actual: actualSpending,
+        variance,
+        variancePercent,
+        usagePercent,
+        status: variance >= 0 ? 'under' : 'over' as 'under' | 'over',
+      };
+    });
+  }, [budgets, expenses]);
+
+  // Total budget summary
+  const budgetSummary = useMemo(() => {
+    const totalBudget = budgetVarianceData.reduce((sum, b) => sum + b.budget, 0);
+    const totalActual = budgetVarianceData.reduce((sum, b) => sum + b.actual, 0);
+    const totalVariance = totalBudget - totalActual;
+    const overBudgetCategories = budgetVarianceData.filter(b => b.status === 'over').length;
+    
+    return {
+      totalBudget,
+      totalActual,
+      totalVariance,
+      overBudgetCategories,
+      utilizationPercent: totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0,
+    };
+  }, [budgetVarianceData]);
+
   const getRemainingBalance = (estimated: number, paid: number) => Math.max(0, estimated - paid);
+
+  const getPaymentProgress = (estimated: number, paid: number) => {
+    if (estimated === 0) return 100;
+    return Math.min(100, Math.round((paid / estimated) * 100));
+  };
+
+  // Calculate total payment progress for a customer
+  const getTotalCustomerProgress = (customer: Customer) => {
+    const totalEstimated = customer.projectPayment.estimatedCost + 
+      customer.maintenancePayment.estimatedCost + 
+      customer.newRequirementPayment.estimatedCost;
+    const totalPaid = customer.projectPayment.amountPaid + 
+      customer.maintenancePayment.amountPaid + 
+      customer.newRequirementPayment.amountPaid;
+    return getPaymentProgress(totalEstimated, totalPaid);
+  };
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
@@ -408,10 +472,8 @@ export default function Financials() {
             </DropdownMenuContent>
           </DropdownMenu>
           <AddPaymentDialog />
-          <Button onClick={addExpense} variant="outline" className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Expense
-          </Button>
+          <AddExpenseDialog />
+          <BudgetPlanningDialog />
         </div>
       </div>
 
@@ -539,16 +601,17 @@ export default function Financials() {
       )}
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="customer-payments" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="customer-payments">Customer Payments</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsTrigger value="payments">Customer Payments</TabsTrigger>
           <TabsTrigger value="payment-history">Payment History</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
+          <TabsTrigger value="budget">Budget Planning</TabsTrigger>
           <TabsTrigger value="charts">Charts</TabsTrigger>
         </TabsList>
 
         {/* Customer Payments Tab */}
-        <TabsContent value="customer-payments" className="space-y-6">
+        <TabsContent value="payments" className="space-y-6">
           {/* Section: Payment Summary */}
           <section className="space-y-4">
             <SectionHeader 
@@ -685,6 +748,7 @@ export default function Financials() {
                       <TableRow>
                         <TableHead>Customer</TableHead>
                         <TableHead>Service</TableHead>
+                        <TableHead className="w-[140px]">Progress</TableHead>
                         {(paymentTypeFilter === 'all' || paymentTypeFilter === 'project') && (
                           <>
                             <TableHead className="text-right">Proj. Est.</TableHead>
@@ -707,6 +771,7 @@ export default function Financials() {
                             <TableHead className="text-right">New Req. Rem.</TableHead>
                           </>
                         )}
+                        <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -719,11 +784,29 @@ export default function Financials() {
                       ) : (
                         filteredCustomers.map((customer) => {
                           const isPaidThisMonth = customer.maintenancePaidMonths?.includes(selectedMonth);
+                          const progress = getTotalCustomerProgress(customer);
                           return (
                             <TableRow key={customer.id}>
                               <TableCell className="font-medium">{customer.companyName}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="text-xs">{customer.serviceType}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Progress 
+                                    value={progress} 
+                                    className={cn(
+                                      "h-2 flex-1",
+                                      progress === 100 ? "[&>div]:bg-success" : progress >= 50 ? "[&>div]:bg-primary" : "[&>div]:bg-warning"
+                                    )}
+                                  />
+                                  <span className={cn(
+                                    "text-xs font-medium min-w-[36px] text-right",
+                                    progress === 100 ? "text-success" : progress >= 50 ? "text-primary" : "text-warning"
+                                  )}>
+                                    {progress}%
+                                  </span>
+                                </div>
                               </TableCell>
                               {(paymentTypeFilter === 'all' || paymentTypeFilter === 'project') && (
                                 <>
@@ -804,6 +887,17 @@ export default function Financials() {
                                   </TableCell>
                                 </>
                               )}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                  onClick={() => handleViewClick(customer)}
+                                  title="View details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           );
                         })
@@ -905,9 +999,11 @@ export default function Financials() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Category</TableHead>
-                      <TableHead className="w-[300px]">Description</TableHead>
+                      <TableHead className="w-[250px]">Description</TableHead>
                       <TableHead className="text-right">Amount ($)</TableHead>
+                      <TableHead>Due Date</TableHead>
                       <TableHead>Recurring</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -933,12 +1029,40 @@ export default function Financials() {
                             onChange={(v) => updateExpense(expense.id, 'amount', v)}
                           />
                         </TableCell>
+                        <TableCell className="text-sm">
+                          {expense.dueDate ? formatDate(expense.dueDate) : '-'}
+                        </TableCell>
                         <TableCell>
                           <EditableCell
                             value={expense.recurring}
                             type="boolean"
                             onChange={(v) => updateExpense(expense.id, 'recurring', v)}
                           />
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => updateExpense(expense.id, 'isPaid', !expense.isPaid)}
+                            className={cn(
+                              "h-7 px-2 gap-1",
+                              expense.isPaid 
+                                ? "text-success hover:text-success/80" 
+                                : "text-warning hover:text-warning/80"
+                            )}
+                          >
+                            {expense.isPaid ? (
+                              <>
+                                <CheckCircle className="h-4 w-4" />
+                                Paid
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-4 w-4" />
+                                Unpaid
+                              </>
+                            )}
+                          </Button>
                         </TableCell>
                         <TableCell>
                           <Button
@@ -959,8 +1083,369 @@ export default function Financials() {
           </section>
         </TabsContent>
 
+        {/* Budget Planning Tab */}
+        <TabsContent value="budget" className="space-y-6">
+          {/* Budget Overview Section */}
+          <section className="space-y-4">
+            <SectionHeader 
+              title="Budget Overview"
+              description={`Monthly expense targets for ${format(new Date(), 'MMMM yyyy')}`}
+              icon={Target}
+            />
+            
+            {/* Budget Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <KPICard
+                title="Total Budget"
+                value={budgetSummary.totalBudget}
+                format="currency"
+                variant="default"
+                icon={<Target className="h-5 w-5 text-primary" />}
+              />
+              <KPICard
+                title="Total Spent"
+                value={budgetSummary.totalActual}
+                format="currency"
+                variant={budgetSummary.totalVariance >= 0 ? 'success' : 'warning'}
+                icon={<DollarSign className="h-5 w-5" />}
+              />
+              <KPICard
+                title="Remaining Budget"
+                value={Math.abs(budgetSummary.totalVariance)}
+                format="currency"
+                variant={budgetSummary.totalVariance >= 0 ? 'success' : 'warning'}
+                icon={budgetSummary.totalVariance >= 0 ? <TrendingDown className="h-5 w-5 text-success" /> : <TrendingUp className="h-5 w-5 text-warning" />}
+              />
+              <KPICard
+                title="Budget Utilization"
+                value={budgetSummary.utilizationPercent}
+                format="percentage"
+                variant={budgetSummary.utilizationPercent <= 100 ? 'default' : 'warning'}
+                icon={<BarChart3 className="h-5 w-5 text-primary" />}
+              />
+            </div>
+          </section>
+
+          {/* Budget vs Actual Chart */}
+          <section className="space-y-4">
+            <SectionHeader 
+              title="Budget vs Actual Spending"
+              description="Visual comparison of targets and actual expenses by category"
+              icon={BarChart3}
+            />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Bar Chart Comparison */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-semibold">Category Comparison</CardTitle>
+                  <CardDescription>Budget targets vs actual spending</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={budgetVarianceData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `$${v}`} />
+                        <YAxis type="category" dataKey="category" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={90} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                          formatter={(value: number, name: string) => [`$${value.toLocaleString()}`, name === 'budget' ? 'Budget' : 'Actual']}
+                        />
+                        <Bar dataKey="budget" fill="hsl(var(--muted-foreground))" name="budget" radius={[0, 4, 4, 0]} opacity={0.5} />
+                        <Bar dataKey="actual" fill="hsl(var(--primary))" name="actual" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex justify-center gap-6 mt-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm bg-muted-foreground opacity-50" />
+                      <span className="text-sm text-muted-foreground">Budget</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm bg-primary" />
+                      <span className="text-sm text-muted-foreground">Actual</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Variance Chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-semibold">Budget Variance</CardTitle>
+                  <CardDescription>Under/over budget by category</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={budgetVarianceData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `$${v}`} />
+                        <YAxis type="category" dataKey="category" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={90} />
+                        <ReferenceLine x={0} stroke="hsl(var(--border))" />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                          formatter={(value: number) => [
+                            `$${Math.abs(value).toLocaleString()} ${value >= 0 ? 'under' : 'over'} budget`,
+                            'Variance'
+                          ]}
+                        />
+                        <Bar 
+                          dataKey="variance" 
+                          radius={[0, 4, 4, 0]}
+                        >
+                          {budgetVarianceData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={entry.variance >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} 
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex justify-center gap-6 mt-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm bg-success" />
+                      <span className="text-sm text-muted-foreground">Under Budget</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm bg-destructive" />
+                      <span className="text-sm text-muted-foreground">Over Budget</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Budget Tracking Table */}
+          <section className="space-y-4">
+            <SectionHeader 
+              title="Detailed Budget Tracking"
+              description="Category-wise budget utilization and variance"
+              icon={Wallet}
+            />
+            
+            <Card>
+              <CardContent className="pt-4">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Budget</TableHead>
+                        <TableHead className="text-right">Actual</TableHead>
+                        <TableHead className="text-right">Variance</TableHead>
+                        <TableHead>Utilization</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {budgetVarianceData.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                            No budgets set for this month. Click "Set Budget" to add one.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        budgetVarianceData.map((item) => (
+                          <TableRow key={item.category}>
+                            <TableCell className="font-medium">{item.category}</TableCell>
+                            <TableCell className="text-right">${item.budget.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">${item.actual.toLocaleString()}</TableCell>
+                            <TableCell className={cn(
+                              "text-right font-medium",
+                              item.variance >= 0 ? "text-success" : "text-destructive"
+                            )}>
+                              {item.variance >= 0 ? '+' : '-'}${Math.abs(item.variance).toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 min-w-[120px]">
+                                <Progress 
+                                  value={item.usagePercent} 
+                                  className={cn(
+                                    "h-2 flex-1",
+                                    item.usagePercent > 100 ? "[&>div]:bg-destructive" : 
+                                    item.usagePercent > 80 ? "[&>div]:bg-warning" : "[&>div]:bg-success"
+                                  )}
+                                />
+                                <span className={cn(
+                                  "text-xs font-medium min-w-[40px] text-right",
+                                  item.usagePercent > 100 ? "text-destructive" : 
+                                  item.usagePercent > 80 ? "text-warning" : "text-success"
+                                )}>
+                                  {item.usagePercent.toFixed(0)}%
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={item.status === 'under' ? 'default' : 'destructive'}
+                                className={item.status === 'under' ? 'bg-success/10 text-success border-success/20' : ''}
+                              >
+                                {item.status === 'under' ? 'Under Budget' : 'Over Budget'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => {
+                                  const currentMonth = format(new Date(), 'yyyy-MM');
+                                  setBudgets(budgets.filter(b => !(b.category === item.category && b.month === currentMonth)));
+                                  toast({ title: 'Budget removed', description: `${item.category} budget has been removed.` });
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        </TabsContent>
+
         {/* Charts Tab */}
         <TabsContent value="charts" className="space-y-6">
+          {/* Revenue Growth Comparison Section */}
+          <section className="space-y-4">
+            <SectionHeader 
+              title="Revenue Growth Comparison"
+              description={`Compare revenue trends across ${viewMode} periods`}
+              icon={TrendingUp}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Revenue vs Expenses Comparison */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-semibold">Revenue vs Expenses Trend</CardTitle>
+                  <CardDescription>Historical comparison over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData.revenueExpenses}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                        <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `$${v}`} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                          formatter={(value: number, name: string) => [`$${value.toLocaleString()}`, name === 'revenue' ? 'Revenue' : 'Expenses']}
+                        />
+                        <Bar dataKey="revenue" fill="hsl(var(--success))" name="revenue" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="expenses" fill="hsl(var(--warning))" name="expenses" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex justify-center gap-6 mt-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm bg-success" />
+                      <span className="text-sm text-muted-foreground">Revenue</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm bg-warning" />
+                      <span className="text-sm text-muted-foreground">Expenses</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Month-over-Month Growth */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-semibold">Growth Rate Analysis</CardTitle>
+                  <CardDescription>Month-over-month revenue growth percentage</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData.revenueExpenses.map((item, index, arr) => ({
+                        month: item.month,
+                        growthRate: index === 0 ? 0 : Math.round(((item.revenue - arr[index - 1].revenue) / arr[index - 1].revenue) * 100),
+                        profit: item.revenue - item.expenses
+                      }))}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                        <YAxis 
+                          yAxisId="left"
+                          tick={{ fontSize: 11 }} 
+                          stroke="hsl(var(--muted-foreground))" 
+                          tickFormatter={(v) => `${v}%`} 
+                        />
+                        <YAxis 
+                          yAxisId="right"
+                          orientation="right"
+                          tick={{ fontSize: 11 }} 
+                          stroke="hsl(var(--muted-foreground))" 
+                          tickFormatter={(v) => `$${v}`} 
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                          formatter={(value: number, name: string) => [
+                            name === 'growthRate' ? `${value}%` : `$${value.toLocaleString()}`, 
+                            name === 'growthRate' ? 'Growth Rate' : 'Net Profit'
+                          ]}
+                        />
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="growthRate"
+                          stroke="hsl(var(--primary))"
+                          strokeWidth={2}
+                          dot={{ fill: 'hsl(var(--primary))' }}
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="profit"
+                          stroke="hsl(var(--success))"
+                          strokeWidth={2}
+                          dot={{ fill: 'hsl(var(--success))' }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex justify-center gap-6 mt-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-primary" />
+                      <span className="text-sm text-muted-foreground">Growth Rate (%)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-success" />
+                      <span className="text-sm text-muted-foreground">Net Profit ($)</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Financial Analytics Section */}
           <section className="space-y-4">
             <SectionHeader 
               title="Financial Analytics"
@@ -1082,6 +1567,13 @@ export default function Financials() {
           </section>
         </TabsContent>
       </Tabs>
+
+      {/* Customer Detail Dialog */}
+      <CustomerDetailDialog
+        customer={customerToView}
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+      />
     </div>
   );
 }

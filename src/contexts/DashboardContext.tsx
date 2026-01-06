@@ -52,6 +52,15 @@ export interface Expense {
   description: string;
   amount: number;
   recurring: boolean;
+  dueDate?: string;
+  isPaid: boolean;
+}
+
+export interface Budget {
+  id: string;
+  category: string;
+  monthlyTarget: number;
+  month: string; // 'YYYY-MM' format
 }
 
 export interface Note {
@@ -128,6 +137,8 @@ interface DashboardContextType {
   paymentHistory: PaymentHistory[];
   setPaymentHistory: (history: PaymentHistory[]) => void;
   addPaymentRecord: (record: Omit<PaymentHistory, 'id'>) => void;
+  budgets: Budget[];
+  setBudgets: (budgets: Budget[]) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -202,11 +213,11 @@ const initialAutomations: Automation[] = [
 ];
 
 const initialExpenses: Expense[] = [
-  { id: '1', category: 'Infrastructure', description: 'Cloud hosting (AWS)', amount: 850, recurring: true },
-  { id: '2', category: 'Software', description: 'Development tools licenses', amount: 320, recurring: true },
-  { id: '3', category: 'Marketing', description: 'LinkedIn Ads campaign', amount: 500, recurring: false },
-  { id: '4', category: 'Personnel', description: 'Contractor payment', amount: 2000, recurring: false },
-  { id: '5', category: 'Office', description: 'Coworking space', amount: 450, recurring: true },
+  { id: '1', category: 'Infrastructure', description: 'Cloud hosting (AWS)', amount: 850, recurring: true, dueDate: '2026-01-15', isPaid: true },
+  { id: '2', category: 'Software', description: 'Development tools licenses', amount: 320, recurring: true, dueDate: '2026-01-20', isPaid: true },
+  { id: '3', category: 'Marketing', description: 'LinkedIn Ads campaign', amount: 500, recurring: false, dueDate: '2026-01-10', isPaid: false },
+  { id: '4', category: 'Personnel', description: 'Contractor payment', amount: 2000, recurring: false, dueDate: '2026-01-05', isPaid: true },
+  { id: '5', category: 'Office', description: 'Coworking space', amount: 450, recurring: true, dueDate: '2026-01-01', isPaid: true },
 ];
 
 const initialNotes: Note[] = [
@@ -263,6 +274,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [notes, setNotes] = useState<Note[]>(initialNotes);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>(initialPaymentHistory);
+  
+  const [budgets, setBudgets] = useState<Budget[]>([
+    { id: '1', category: 'Infrastructure', monthlyTarget: 1000, month: '2026-01' },
+    { id: '2', category: 'Software', monthlyTarget: 500, month: '2026-01' },
+    { id: '3', category: 'Marketing', monthlyTarget: 600, month: '2026-01' },
+    { id: '4', category: 'Personnel', monthlyTarget: 3000, month: '2026-01' },
+    { id: '5', category: 'Office', monthlyTarget: 500, month: '2026-01' },
+  ]);
 
   const [chartData, setChartData] = useState<ChartData>({
     revenueExpenses: [
@@ -321,6 +340,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         paymentHistory,
         setPaymentHistory,
         addPaymentRecord,
+        budgets,
+        setBudgets,
       }}
     >
       {children}
