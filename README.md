@@ -103,6 +103,7 @@ This dashboard is perfect for:
 - Tabbed interface for different service types
 
 ### 🤖 **Automation Monitoring**
+![Automation Page](./docs/images/automation-page.png)
 - Track automation scripts and their performance
 - Runtime monitoring
 - Execution count tracking
@@ -112,6 +113,7 @@ This dashboard is perfect for:
 - Filter by status and client
 
 ### 💰 **Financial Management**
+![Financial Page](./docs/images/financial-dashboard.png)
 - Comprehensive financial dashboard
 - Track project payments, maintenance fees, and new requirements
 - Expense management with categories
@@ -123,6 +125,7 @@ This dashboard is perfect for:
 - Visual financial charts and trends
 
 ### 📝 **Notes & Reminders**
+![Notes & Reminders*](./docs/images/notes.png)
 - Create notes, todos, and reminders
 - Mark tasks as completed
 - Date-based organization
