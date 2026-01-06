@@ -2,16 +2,24 @@
 
 A comprehensive, modern operations management dashboard designed for service-based businesses to track customers, projects, finances, automations, and more. Built with React, TypeScript, and featuring dual-database architecture for optimal performance and reliability.
 
-![Dashboard Preview](https://via.placeholder.com/1200x600/1a1a1a/ffffff?text=Wobrexx+Operations+Dashboard)
+![Dashboard Preview](./docs/images/dashboard-preview.png)
+
+---
+
+## 🎥 Demo Video
+
+Watch a comprehensive screen recording walkthrough of the Wobrexx Operations Dashboard:
+
+[![Watch the demo video](https://img.youtube.com/vi/eLTVl3wXBZM/maxresdefault.jpg)](https://www.youtube.com/watch?v=eLTVl3wXBZM)
 
 ---
 
 ## 📋 Table of Contents
 
+- [Demo Video](#-demo-video)
 - [Problem It Solves](#-problem-it-solves)
 - [Who Needs This App](#-who-needs-this-app)
 - [Features](#-features)
-- [Screenshots](#-screenshots)
 - [Technologies Used](#-technologies-used)
 - [Getting Started](#-getting-started)
 - [Database Configuration](#-database-configuration)
@@ -65,12 +73,16 @@ This dashboard is perfect for:
 ## ✨ Features
 
 ### 📊 **Overview Dashboard**
+![Overview Dashboard](./docs/images/overview-dashboard.png)
+
 - Real-time KPI cards (Total Customers, Active Customers, Monthly Revenue, Net Profit)
 - Interactive charts (Revenue vs Expenses, Service Distribution, Customer Status)
 - Month-over-month growth indicators
 - Quick insights into business health
 
 ### 👥 **Customer Management**
+![Customer Management](./docs/images/customer-management.png)
+
 - Complete customer database with company details
 - Track service types (Website, Software, Automation, Mixed)
 - Customer status management (Active, Paused, Opted Out)
@@ -81,6 +93,8 @@ This dashboard is perfect for:
 - Customer detail view with full history
 
 ### 💼 **Services/Projects Management**
+![Services Page](./docs/images/services-page.png)
+
 - Track all projects by type (Website, Software, Automation)
 - Project status tracking (Live, Development, Paused, Completed)
 - Revenue tracking per project
@@ -131,34 +145,6 @@ This dashboard is perfect for:
 
 ---
 
-## 📸 Screenshots
-
-### Overview Dashboard
-![Overview Dashboard](https://via.placeholder.com/1200x700/1a1a1a/ffffff?text=Overview+Dashboard+with+KPIs+and+Charts)
-
-*The main dashboard showing key metrics, revenue/expense trends, service distribution, and customer status at a glance.*
-
-### Customer Management
-![Customer Management](https://via.placeholder.com/1200x700/1a1a1a/ffffff?text=Customer+Management+Page)
-
-*Comprehensive customer list with inline editing, search, filters, and detailed customer information.*
-
-### Financial Dashboard
-![Financial Dashboard](https://via.placeholder.com/1200x700/1a1a1a/ffffff?text=Financial+Management+Page)
-
-*Financial overview with payment tracking, expense management, budgets, and export capabilities.*
-
-### Automation Monitoring
-![Automation Page](https://via.placeholder.com/1200x700/1a1a1a/ffffff?text=Automation+Monitoring+Page)
-
-*Track automation scripts, their runtime, execution counts, and health status.*
-
-### Services/Projects
-![Services Page](https://via.placeholder.com/1200x700/1a1a1a/ffffff?text=Services+and+Projects+Page)
-
-*Manage all projects organized by service type with status tracking and revenue information.*
-
----
 
 ## 🛠 Technologies Used
 
